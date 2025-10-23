@@ -1,0 +1,22 @@
+run:
+  tests: true
+  timeout: 3m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gofmt
+    - unused
+    - deadcode
+    - gosimple
+    - structcheck
+    - typecheck
+    - gocritic
+
+issues:
+  exclude-use-default: false
+
+exclude:
+  - "generated.*"
