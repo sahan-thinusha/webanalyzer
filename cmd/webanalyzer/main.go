@@ -1,12 +1,19 @@
 package main
 
 import (
-	"log"
+	"go.uber.org/zap"
 	"net/http"
 	"webanalyzer/internal/api/v1/router"
+	"webanalyzer/internal/log"
 )
 
+func init() {
+	log.InitLogger()
+}
+
 func main() {
+	defer log.Sync()
+
 	r := router.New()
 
 	server := &http.Server{
@@ -14,8 +21,8 @@ func main() {
 		Handler: r,
 	}
 
-	log.Println("Server started..")
+	log.Logger.Info("Server started..")
 	if err := server.ListenAndServe(); err != nil {
-		log.Fatal(err)
+		log.Logger.Fatal("Server failed", zap.Error(err))
 	}
 }
