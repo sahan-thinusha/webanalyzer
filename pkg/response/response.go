@@ -2,7 +2,9 @@ package response
 
 import (
 	"encoding/json"
+	"go.uber.org/zap"
 	"net/http"
+	"webanalyzer/internal/log"
 )
 
 type Response struct {
@@ -21,7 +23,11 @@ func JSON(w http.ResponseWriter, statusCode int, data interface{}, message strin
 		Data:    data,
 	}
 
-	json.NewEncoder(w).Encode(res)
+	err := json.NewEncoder(w).Encode(res)
+	if err != nil {
+		log.Logger.Error("failed to encode JSON response", zap.Error(err))
+		return
+	}
 }
 
 func Success(w http.ResponseWriter, data interface{}, message string) {
