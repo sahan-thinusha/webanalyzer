@@ -11,5 +11,5 @@ func New() http.Handler {
 
 	mux.HandleFunc("/health", handler.HealthCheckHandler)
 
-	return middleware.CORS(mux)
+	return middleware.CORS(middleware.RateLimit(mux))
 }
