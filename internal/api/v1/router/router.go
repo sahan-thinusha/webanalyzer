@@ -17,9 +17,13 @@ func New() http.Handler {
 		func(w http.ResponseWriter, r *http.Request, err error) {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		},
-		middleware.LoggingMiddleware(
-			middleware.CORS(
-				middleware.RateLimit(mux),
+		middleware.SecureHeaders(
+			middleware.Logging(
+				middleware.Compression(
+					middleware.CORS(
+						middleware.RateLimit(mux),
+					),
+				),
 			),
 		),
 	)
