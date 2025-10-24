@@ -4,11 +4,13 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"webanalyzer/internal/api/v1/router"
+	"webanalyzer/internal/config"
 	"webanalyzer/internal/log"
 )
 
 func init() {
 	log.InitLogger()
+	config.LoadEnv()
 }
 
 func main() {
