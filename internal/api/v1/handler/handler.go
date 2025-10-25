@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"webanalyzer/internal/service"
+	"webanalyzer/internal/util"
 	"webanalyzer/pkg/response"
 )
 
@@ -19,13 +20,18 @@ func AnalyzePageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targetURL := r.URL.Query().Get("url")
-	if targetURL == "" {
+	url := r.URL.Query().Get("url")
+	if url == "" {
 		response.Error(w, http.StatusBadRequest, "missing 'url' query parameter")
 		return
 	}
 
-	result := service.AnalyzePage(targetURL)
+	if !util.IsValidURL(url) {
+		response.Error(w, http.StatusBadRequest, "invalid 'url' format")
+		return
+	}
+
+	result := service.AnalyzePage(url)
 	if result == nil {
 		response.Error(w, http.StatusInternalServerError, "failed to analyze page")
 		return
