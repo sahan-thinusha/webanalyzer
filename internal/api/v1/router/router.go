@@ -8,9 +8,18 @@ import (
 )
 
 func New() http.Handler {
+	appName := "webanalyzer"
+	apiVersion := "v1"
+	basePath := "/" + appName + "/" + apiVersion
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/health", handler.HealthCheckHandler)
+	register := func(path string, h http.HandlerFunc) {
+		mux.HandleFunc(basePath+path, h)
+	}
+
+	register("/health", handler.HealthCheckHandler)
+	register("/analyze", handler.AnalyzePageHandler)
 
 	return middleware.RecoverPanic(
 		log.Logger,
