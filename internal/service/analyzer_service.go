@@ -8,31 +8,15 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
 	"webanalyzer/internal/log"
 	"webanalyzer/internal/model"
+	"webanalyzer/internal/util/analyzer"
 )
 
-var (
-	html5Doctype = regexp.MustCompile(`(?i)<!DOCTYPE\s+html>`)
-	html4Doctype = regexp.MustCompile(`(?i)<!DOCTYPE\s+HTML\s+PUBLIC\s+"[^"]*//DTD\s+HTML\s+4`)
-	xhtmlDoctype = regexp.MustCompile(`(?i)<!DOCTYPE\s+html\s+PUBLIC\s+"[^"]*//DTD\s+XHTML`)
-)
-
-type linkResult struct {
-	isInternal   bool
-	isAccessible bool
-}
-
-const (
-	maxLinkCheckWorkers = 20
-	linkCheckTimeout    = 5 * time.Second
-)
-
-// analyzes the HTML content of a webpage at the given target URL.
+// AnalyzePage analyzes the HTML content of a webpage at the given target URL.
 // detect the HTML version, extract the page title, count of different headers, count internal, external, and inaccessible links, and has login form in the page
 func AnalyzePage(targetURL string) *model.WebpageAnalysis {
 	page := &model.WebpageAnalysis{}
@@ -151,11 +135,11 @@ func detectHTMLVersion(rawHTML string) string {
 	}
 
 	switch {
-	case html5Doctype.MatchString(docStart):
+	case analyzer.Html5Doctype.MatchString(docStart):
 		return "HTML5"
-	case xhtmlDoctype.MatchString(docStart):
+	case analyzer.XhtmlDoctype.MatchString(docStart):
 		return "XHTML 1.0"
-	case html4Doctype.MatchString(docStart):
+	case analyzer.Html4Doctype.MatchString(docStart):
 		return "HTML 4.01"
 	default:
 		return "Unknown (possibly HTML5 without explicit DOCTYPE)"
@@ -215,8 +199,8 @@ func extractLinks(root *html.Node) []string {
 
 	var visitNode func(*html.Node)
 	visitNode = func(node *html.Node) {
-		if isLinkTag(node) {
-			href := getHrefValue(node)
+		if analyzer.IsLinkTag(node) {
+			href := analyzer.GetHrefValue(node)
 			if href != "" {
 				links = append(links, href)
 			}
@@ -229,22 +213,6 @@ func extractLinks(root *html.Node) []string {
 
 	visitNode(root)
 	return links
-}
-
-// checks whether the current node represents an <a> tag.
-func isLinkTag(node *html.Node) bool {
-	return node.Type == html.ElementNode && node.Data == "a"
-}
-
-// finds and returns the href attribute from an <a> tag.
-// If there's no href, it returns an empty string.
-func getHrefValue(node *html.Node) string {
-	for _, attr := range node.Attr {
-		if attr.Key == "href" {
-			return attr.Val
-		}
-	}
-	return ""
 }
 
 // check wheaten link is internal or not
@@ -283,7 +251,7 @@ func checkLinkAccessibility(ctx context.Context, link string, baseURL *url.URL) 
 	}
 
 	client := &http.Client{
-		Timeout: linkCheckTimeout,
+		Timeout: analyzer.LinkCheckTimeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 3 {
 				return http.ErrUseLastResponse
@@ -323,9 +291,9 @@ func analyzeLinks(links []string, baseURL *url.URL) (internal, external, inacces
 	defer cancel()
 
 	linkJobs := make(chan string, len(links))
-	results := make(chan linkResult, len(links))
+	results := make(chan analyzer.LinkResult, len(links))
 
-	numWorkers := maxLinkCheckWorkers
+	numWorkers := analyzer.MaxLinkCheckWorkers
 	if len(links) < numWorkers {
 		numWorkers = len(links)
 	}
@@ -342,9 +310,9 @@ func analyzeLinks(links []string, baseURL *url.URL) (internal, external, inacces
 				default:
 					isInternal := isInternalLink(link, baseURL)
 					isAccessible := checkLinkAccessibility(ctx, link, baseURL)
-					results <- linkResult{
-						isInternal:   isInternal,
-						isAccessible: isAccessible,
+					results <- analyzer.LinkResult{
+						IsInternal:   isInternal,
+						IsAccessible: isAccessible,
 					}
 				}
 			}
@@ -364,12 +332,12 @@ func analyzeLinks(links []string, baseURL *url.URL) (internal, external, inacces
 	}()
 
 	for result := range results {
-		if result.isInternal {
+		if result.IsInternal {
 			internal++
 		} else {
 			external++
 		}
-		if !result.isAccessible {
+		if !result.IsAccessible {
 			inaccessible++
 		}
 	}
@@ -436,7 +404,7 @@ func containsAuthIndicators(formNode *html.Node, authInputs, loginKeywords []str
 	return found
 }
 
-// check has auth iput type
+// check has auth input type
 func hasAuthInput(node *html.Node, authInputs []string) bool {
 	for _, attr := range node.Attr {
 		val := strings.ToLower(attr.Val)
@@ -462,7 +430,7 @@ func isSubmitButton(node *html.Node) bool {
 
 // check about login related keywords
 func hasLoginKeyword(node *html.Node, loginKeywords []string) bool {
-	text := strings.ToLower(innerText(node))
+	text := strings.ToLower(analyzer.ExtractInnerText(node))
 	for _, attr := range node.Attr {
 		text += " " + strings.ToLower(attr.Val)
 	}
@@ -472,20 +440,4 @@ func hasLoginKeyword(node *html.Node, loginKeywords []string) bool {
 		}
 	}
 	return false
-}
-
-// innerText extracts all visible text content inside a node (recursively).
-func innerText(node *html.Node) string {
-	var sb strings.Builder
-	var traverse func(*html.Node)
-	traverse = func(n *html.Node) {
-		if n.Type == html.TextNode {
-			sb.WriteString(n.Data)
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			traverse(c)
-		}
-	}
-	traverse(node)
-	return sb.String()
 }
