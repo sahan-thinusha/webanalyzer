@@ -423,129 +423,76 @@ func TestHasLoginForm(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "Form with password input",
-			htmlStr: `<html><body>
-				<form>
-					<input type="text" name="username">
-					<input type="password" name="password">
-				</form>
-			</body></html>`,
-			expected: true,
-		},
-		{
-			name: "Form without password input",
-			htmlStr: `<html><body>
-				<form>
-					<input type="text" name="search">
-					<input type="submit">
-				</form>
-			</body></html>`,
-			expected: false,
-		},
-		{
-			name:     "No form",
-			htmlStr:  `<html><body><p>No forms here</p></body></html>`,
-			expected: false,
-		},
-		{
-			name: "Password input case insensitive",
-			htmlStr: `<html><body>
-				<form>
-					<input type="PASSWORD" name="password">
-				</form>
-			</body></html>`,
-			expected: true,
-		},
-		{
-			name: "Multiple forms, one with password",
-			htmlStr: `<html><body>
-				<form><input type="text"></form>
-				<form><input type="password"></form>
-			</body></html>`,
-			expected: true,
-		},
-		{
-			name: "Nested password input",
-			htmlStr: `<html><body>
-				<form>
-					<div>
-						<input type="password" name="password">
-					</div>
-				</form>
-			</body></html>`,
-			expected: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node, err := html.Parse(strings.NewReader(tt.htmlStr))
-			if err != nil {
-				t.Fatalf("Failed to parse HTML: %v", err)
-			}
-			result := hasLoginForm(node)
-			if result != tt.expected {
-				t.Errorf("hasLoginForm() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestContainsPasswordInput(t *testing.T) {
-	tests := []struct {
-		name     string
-		htmlStr  string
-		expected bool
-	}{
-		{
-			name: "Has password input",
+			name: "Simple password login",
 			htmlStr: `<form>
 				<input type="password" name="pwd">
+				<button>Login</button>
 			</form>`,
 			expected: true,
 		},
 		{
-			name: "No password input",
+			name: "OTP login",
 			htmlStr: `<form>
 				<input type="text" name="username">
+				<input type="text" name="otp">
+				<input type="submit" value="Verify">
+			</form>`,
+			expected: true,
+		},
+		{
+			name: "Login button only",
+			htmlStr: `<form>
+				<button>Sign In</button>
+			</form>`,
+			expected: true,
+		},
+		{
+			name: "Nested form with password",
+			htmlStr: `<form>
+				<div><input type="password"></div>
+				<button>Submit</button>
+			</form>`,
+			expected: true,
+		},
+		{
+			name: "Form without authentication fields",
+			htmlStr: `<form>
+				<input type="text" name="email">
+				<input type="text" name="name">
+				<button>Submit</button>
 			</form>`,
 			expected: false,
 		},
 		{
-			name: "Nested password input",
-			htmlStr: `<form>
-				<div><input type="password"></div>
-			</form>`,
+			name: "Multiple forms, single login",
+			htmlStr: `<form><input type="text" name="search"></form>
+					  <form><input type="password" name="pwd"><button>Login</button></form>`,
+			expected: true,
+		},
+		{
+			name:     "Empty form",
+			htmlStr:  `<form></form>`,
+			expected: false,
+		},
+		{
+			name:     "Password input with different casing",
+			htmlStr:  `<form><input TYPE="Password"></form>`,
 			expected: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Parse the HTML
 			node, err := html.Parse(strings.NewReader(tt.htmlStr))
 			if err != nil {
 				t.Fatalf("Failed to parse HTML: %v", err)
 			}
-			var formNode *html.Node
-			var findForm func(*html.Node)
-			findForm = func(n *html.Node) {
-				if n.Type == html.ElementNode && n.Data == "form" {
-					formNode = n
-					return
-				}
-				for c := n.FirstChild; c != nil; c = c.NextSibling {
-					findForm(c)
-				}
-			}
-			findForm(node)
 
-			if formNode == nil {
-				t.Fatal("Form node not found")
-			}
-
-			result := containsPasswordInput(formNode)
+			result := hasLoginForm(node)
 			if result != tt.expected {
-				t.Errorf("containsPasswordInput() = %v, want %v", result, tt.expected)
+
+				t.Errorf("hasLoginForm() = %v, want %v", result, tt.expected)
 			}
 		})
 	}

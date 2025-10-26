@@ -32,6 +32,8 @@ const (
 	linkCheckTimeout    = 5 * time.Second
 )
 
+// analyzes the HTML content of a webpage at the given target URL.
+// detect the HTML version, extract the page title, count of different headers, count internal, external, and inaccessible links, and has login form in the page
 func AnalyzePage(targetURL string) *model.WebpageAnalysis {
 	page := &model.WebpageAnalysis{}
 
@@ -46,7 +48,7 @@ func AnalyzePage(targetURL string) *model.WebpageAnalysis {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(5)
 
 	go func() {
 		defer wg.Done()
@@ -56,6 +58,11 @@ func AnalyzePage(targetURL string) *model.WebpageAnalysis {
 	go func() {
 		defer wg.Done()
 		page.PageTitle = extractTitle(root)
+	}()
+
+	go func() {
+		defer wg.Done()
+		page.HeadingCounts = extractHeadings(root)
 	}()
 
 	var internal, external, inaccessible int
@@ -79,6 +86,7 @@ func AnalyzePage(targetURL string) *model.WebpageAnalysis {
 	return page
 }
 
+// retrieves and parses the HTML content from the given URL
 func fetchHTML(targetURL string) (*html.Node, string, error) {
 	client := &http.Client{
 		Timeout: 30 * time.Second,
@@ -135,6 +143,7 @@ func fetchHTML(targetURL string) (*html.Node, string, error) {
 	return root, rawHTML, nil
 }
 
+// analyze HTML version
 func detectHTMLVersion(rawHTML string) string {
 	docStart := rawHTML
 	if len(rawHTML) > 1000 {
@@ -153,6 +162,7 @@ func detectHTMLVersion(rawHTML string) string {
 	}
 }
 
+// fetch the title from the page
 func extractTitle(node *html.Node) string {
 	if node.Type == html.ElementNode && node.Data == "title" {
 		if node.FirstChild != nil {
@@ -167,13 +177,14 @@ func extractTitle(node *html.Node) string {
 	return ""
 }
 
-func extractHeadings(node *html.Node) model.HeadingCounts {
+// extract the html headings in the page
+func extractHeadings(root *html.Node) model.HeadingCounts {
 	var counts model.HeadingCounts
 
-	var traverse func(*html.Node)
-	traverse = func(n *html.Node) {
-		if n.Type == html.ElementNode {
-			switch n.Data {
+	var visitNode func(*html.Node)
+	visitNode = func(node *html.Node) {
+		if node.Type == html.ElementNode {
+			switch node.Data {
 			case "h1":
 				counts.H1++
 			case "h2":
@@ -188,34 +199,55 @@ func extractHeadings(node *html.Node) model.HeadingCounts {
 				counts.H6++
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			traverse(c)
+
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			visitNode(child)
 		}
 	}
-	traverse(node)
 
+	visitNode(root)
 	return counts
 }
 
-func extractLinks(node *html.Node) []string {
+// extract the links in the html
+func extractLinks(root *html.Node) []string {
 	var links []string
-	var traverse func(*html.Node)
-	traverse = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			for _, attr := range n.Attr {
-				if attr.Key == "href" {
-					links = append(links, attr.Val)
-				}
+
+	var visitNode func(*html.Node)
+	visitNode = func(node *html.Node) {
+		if isLinkTag(node) {
+			href := getHrefValue(node)
+			if href != "" {
+				links = append(links, href)
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			traverse(c)
+
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			visitNode(child)
 		}
 	}
-	traverse(node)
+
+	visitNode(root)
 	return links
 }
 
+// checks whether the current node represents an <a> tag.
+func isLinkTag(node *html.Node) bool {
+	return node.Type == html.ElementNode && node.Data == "a"
+}
+
+// finds and returns the href attribute from an <a> tag.
+// If there's no href, it returns an empty string.
+func getHrefValue(node *html.Node) string {
+	for _, attr := range node.Attr {
+		if attr.Key == "href" {
+			return attr.Val
+		}
+	}
+	return ""
+}
+
+// check wheaten link is internal or not
 func isInternalLink(link string, baseURL *url.URL) bool {
 	if link == "" || strings.HasPrefix(link, "#") {
 		return true
@@ -230,6 +262,9 @@ func isInternalLink(link string, baseURL *url.URL) bool {
 	return strings.EqualFold(resolvedLink.Host, baseURL.Host)
 }
 
+// checks if a given link is accessible by attempting to send a HEAD request
+// If the HEAD request fails, it sends a GET request as a fallback
+// The function checks whether the link has an acceptable URL scheme, resolves relative links, and handles redirects
 func checkLinkAccessibility(ctx context.Context, link string, baseURL *url.URL) bool {
 	parsedLink, err := url.Parse(link)
 	if err != nil {
@@ -278,6 +313,7 @@ func checkLinkAccessibility(ctx context.Context, link string, baseURL *url.URL) 
 	return resp.StatusCode < 400
 }
 
+// checks the accessibility of a list of links, categorizing them as internal or external
 func analyzeLinks(links []string, baseURL *url.URL) (internal, external, inaccessible int) {
 	if len(links) == 0 {
 		return 0, 0, 0
@@ -341,7 +377,11 @@ func analyzeLinks(links []string, baseURL *url.URL) (internal, external, inacces
 	return
 }
 
+// checks whether the given HTML document contains a form element with a password input field
 func hasLoginForm(node *html.Node) bool {
+	loginKeywords := []string{"login", "log in", "sign in", "signin"}
+	authInputs := []string{"password", "otp", "code"}
+
 	var found bool
 	var traverse func(*html.Node)
 	traverse = func(n *html.Node) {
@@ -349,7 +389,7 @@ func hasLoginForm(node *html.Node) bool {
 			return
 		}
 		if n.Type == html.ElementNode && n.Data == "form" {
-			if containsPasswordInput(n) {
+			if containsAuthIndicators(n, authInputs, loginKeywords) {
 				found = true
 				return
 			}
@@ -362,25 +402,90 @@ func hasLoginForm(node *html.Node) bool {
 	return found
 }
 
-func containsPasswordInput(formNode *html.Node) bool {
+func containsAuthIndicators(formNode *html.Node, authInputs, loginKeywords []string) bool {
 	var found bool
-	var traverse func(*html.Node)
-	traverse = func(n *html.Node) {
+
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
 		if found {
 			return
 		}
-		if n.Type == html.ElementNode && n.Data == "input" {
-			for _, attr := range n.Attr {
-				if attr.Key == "type" && strings.ToLower(attr.Val) == "password" {
+
+		if node.Type == html.ElementNode {
+			tag := node.Data
+
+			if tag == "input" && hasAuthInput(node, authInputs) {
+				found = true
+				return
+			}
+
+			if tag == "button" || (tag == "input" && isSubmitButton(node)) {
+				if hasLoginKeyword(node, loginKeywords) {
 					found = true
 					return
 				}
 			}
 		}
+
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+
+	walk(formNode)
+	return found
+}
+
+// check has auth iput type
+func hasAuthInput(node *html.Node, authInputs []string) bool {
+	for _, attr := range node.Attr {
+		val := strings.ToLower(attr.Val)
+		for _, authInput := range authInputs {
+			if strings.Contains(val, authInput) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// check about submit button
+func isSubmitButton(node *html.Node) bool {
+
+	for _, attr := range node.Attr {
+		if attr.Key == "type" && strings.ToLower(attr.Val) == "submit" {
+			return true
+		}
+	}
+	return false
+}
+
+// check about login related keywords
+func hasLoginKeyword(node *html.Node, loginKeywords []string) bool {
+	text := strings.ToLower(innerText(node))
+	for _, attr := range node.Attr {
+		text += " " + strings.ToLower(attr.Val)
+	}
+	for _, kw := range loginKeywords {
+		if strings.Contains(text, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+// innerText extracts all visible text content inside a node (recursively).
+func innerText(node *html.Node) string {
+	var sb strings.Builder
+	var traverse func(*html.Node)
+	traverse = func(n *html.Node) {
+		if n.Type == html.TextNode {
+			sb.WriteString(n.Data)
+		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			traverse(c)
 		}
 	}
-	traverse(formNode)
-	return found
+	traverse(node)
+	return sb.String()
 }
