@@ -1,9 +1,9 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 	"golang.org/x/net/html"
 	"io"
 	"net/http"
@@ -276,7 +276,12 @@ func checkLinkAccessibility(ctx context.Context, link string, baseURL *url.URL) 
 			return false
 		}
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	return resp.StatusCode < 400
 }
