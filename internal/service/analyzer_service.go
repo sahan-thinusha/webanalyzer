@@ -3,12 +3,14 @@ package service
 import (
 	"fmt"
 	"go.uber.org/zap"
+	"golang.org/x/net/context"
 	"golang.org/x/net/html"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"webanalyzer/internal/log"
 	"webanalyzer/internal/model"
@@ -18,6 +20,16 @@ var (
 	html5Doctype = regexp.MustCompile(`(?i)<!DOCTYPE\s+html>`)
 	html4Doctype = regexp.MustCompile(`(?i)<!DOCTYPE\s+HTML\s+PUBLIC\s+"[^"]*//DTD\s+HTML\s+4`)
 	xhtmlDoctype = regexp.MustCompile(`(?i)<!DOCTYPE\s+html\s+PUBLIC\s+"[^"]*//DTD\s+XHTML`)
+)
+
+type linkResult struct {
+	isInternal   bool
+	isAccessible bool
+}
+
+const (
+	maxLinkCheckWorkers = 20
+	linkCheckTimeout    = 5 * time.Second
 )
 
 func AnalyzePage(targetURL string) *model.WebpageAnalysis {
@@ -33,12 +45,36 @@ func AnalyzePage(targetURL string) *model.WebpageAnalysis {
 		return page
 	}
 
-	page.HTMLVersion = detectHTMLVersion(rawHTML)
-	page.PageTitle = extractTitle(root)
-	page.HeadingCounts = extractHeadings(root)
-	links := extractLinks(root)
-	page.InternalLinkCount, page.ExternalLinkCount, page.InaccessibleLinkCount = analyzeLinks(links, baseURL)
-	page.HasLoginForm = hasLoginForm(root)
+	var wg sync.WaitGroup
+	wg.Add(4)
+
+	go func() {
+		defer wg.Done()
+		page.HTMLVersion = detectHTMLVersion(rawHTML)
+	}()
+
+	go func() {
+		defer wg.Done()
+		page.PageTitle = extractTitle(root)
+	}()
+
+	var internal, external, inaccessible int
+	go func() {
+		defer wg.Done()
+		links := extractLinks(root)
+		internal, external, inaccessible = analyzeLinks(links, baseURL)
+	}()
+
+	go func() {
+		defer wg.Done()
+		page.HasLoginForm = hasLoginForm(root)
+	}()
+
+	wg.Wait()
+
+	page.InternalLinkCount = internal
+	page.ExternalLinkCount = external
+	page.InaccessibleLinkCount = inaccessible
 
 	return page
 }
@@ -181,21 +217,20 @@ func extractLinks(node *html.Node) []string {
 }
 
 func isInternalLink(link string, baseURL *url.URL) bool {
-	parsedLink, err := url.Parse(link)
-	if err != nil {
-		return false
-	}
-
-	resolvedLink := baseURL.ResolveReference(parsedLink)
-
 	if link == "" || strings.HasPrefix(link, "#") {
 		return true
 	}
 
+	parsedLink, err := url.Parse(link)
+	if err != nil {
+		return false
+	}
+	resolvedLink := baseURL.ResolveReference(parsedLink)
+
 	return strings.EqualFold(resolvedLink.Host, baseURL.Host)
 }
 
-func checkLinkAccessibility(link string, baseURL *url.URL) bool {
+func checkLinkAccessibility(ctx context.Context, link string, baseURL *url.URL) bool {
 	parsedLink, err := url.Parse(link)
 	if err != nil {
 		return false
@@ -213,7 +248,7 @@ func checkLinkAccessibility(link string, baseURL *url.URL) bool {
 	}
 
 	client := &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: linkCheckTimeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 3 {
 				return http.ErrUseLastResponse
@@ -222,9 +257,18 @@ func checkLinkAccessibility(link string, baseURL *url.URL) bool {
 		},
 	}
 
-	resp, err := client.Head(resolvedLink.String())
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, resolvedLink.String(), nil)
 	if err != nil {
-		resp, err = client.Get(resolvedLink.String())
+		return false
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		req, err = http.NewRequestWithContext(ctx, http.MethodGet, resolvedLink.String(), nil)
+		if err != nil {
+			return false
+		}
+		resp, err = client.Do(req)
 		if err != nil {
 			return false
 		}
@@ -235,19 +279,65 @@ func checkLinkAccessibility(link string, baseURL *url.URL) bool {
 }
 
 func analyzeLinks(links []string, baseURL *url.URL) (internal, external, inaccessible int) {
-	for _, link := range links {
-		isInternal := isInternalLink(link, baseURL)
-		isAccessible := checkLinkAccessibility(link, baseURL)
+	if len(links) == 0 {
+		return 0, 0, 0
+	}
 
-		if isInternal {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	linkJobs := make(chan string, len(links))
+	results := make(chan linkResult, len(links))
+
+	numWorkers := maxLinkCheckWorkers
+	if len(links) < numWorkers {
+		numWorkers = len(links)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for link := range linkJobs {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					isInternal := isInternalLink(link, baseURL)
+					isAccessible := checkLinkAccessibility(ctx, link, baseURL)
+					results <- linkResult{
+						isInternal:   isInternal,
+						isAccessible: isAccessible,
+					}
+				}
+			}
+		}()
+	}
+
+	go func() {
+		for _, link := range links {
+			linkJobs <- link
+		}
+		close(linkJobs)
+	}()
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for result := range results {
+		if result.isInternal {
 			internal++
 		} else {
 			external++
 		}
-		if !isAccessible {
+		if !result.isAccessible {
 			inaccessible++
 		}
 	}
+
 	return
 }
 

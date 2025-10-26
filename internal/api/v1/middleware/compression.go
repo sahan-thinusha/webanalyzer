@@ -19,7 +19,12 @@ func Compression(next http.Handler) http.Handler {
 		}
 
 		gz := gzip.NewWriter(w)
-		defer gz.Close()
+		defer func(gz *gzip.Writer) {
+			err := gz.Close()
+			if err != nil {
+				return
+			}
+		}(gz)
 
 		w.Header().Set("Content-Encoding", "gzip")
 		gzw := gzipResponseWriter{Writer: gz, ResponseWriter: w}
