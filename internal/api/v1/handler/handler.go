@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"webanalyzer/internal/service"
 	"webanalyzer/internal/util"
@@ -38,8 +37,5 @@ func AnalyzePageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		response.Error(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+	response.Success(w, result, "")
 }

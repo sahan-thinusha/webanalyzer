@@ -10,7 +10,7 @@ import (
 func New() http.Handler {
 	appName := "webanalyzer"
 	apiVersion := "v1"
-	basePath := "/" + appName + "/" + apiVersion
+	basePath := "/" + appName + "/api/" + apiVersion
 
 	mux := http.NewServeMux()
 
