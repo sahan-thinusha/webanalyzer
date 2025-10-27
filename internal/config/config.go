@@ -9,6 +9,7 @@ import (
 type Config struct {
 	BasicAuthUser string `mapstructure:"BASIC_AUTH_USER"`
 	BasicAuthPass string `mapstructure:"BASIC_AUTH_PASS"`
+	IsDev         string `mapstructure:"IS_DEV"`
 }
 
 var AppConfig *Config
@@ -27,6 +28,7 @@ func LoadEnv() {
 
 	v.SetDefault(BASIC_AUTH_USER, "")
 	v.SetDefault(BASIC_AUTH_PASS, "")
+	v.SetDefault(IS_DEV, "false")
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {

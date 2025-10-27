@@ -11,6 +11,7 @@ import (
 	"time"
 	"webanalyzer/internal/api/v1/router"
 	"webanalyzer/internal/config"
+	"webanalyzer/internal/debug"
 	"webanalyzer/internal/log"
 )
 
@@ -39,6 +40,13 @@ func main() {
 			log.Logger.Fatal("Server failed", zap.Error(err))
 		}
 	}()
+
+	// Pprof only enabled in dev env
+	if config.AppConfig.IsDev == "true" {
+		go func() {
+			debug.StartPprof(":6060")
+		}()
+	}
 
 	// Wait for interrupt
 	<-stop
