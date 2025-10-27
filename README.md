@@ -33,3 +33,16 @@ npm run build
 ```bash
 npm run preview
 ```
+
+## Tech Stack
+
+**Client:** Svelte 
+
+**Server:** Go
+
+
+## Screenshots
+
+
+![App Screenshot](src/lib/assets/app_ss.png)
+
