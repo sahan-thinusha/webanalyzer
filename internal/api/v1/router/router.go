@@ -37,3 +37,9 @@ func New() http.Handler {
 		),
 	)
 }
+
+func NewMetricsRouter() http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", handler.MetricsHandler())
+	return mux
+}

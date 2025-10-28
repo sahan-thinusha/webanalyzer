@@ -30,10 +30,17 @@ func main() {
 		Handler: r,
 	}
 
+	metricsServer := &http.Server{
+		Addr:              ":8081",
+		Handler:           router.NewMetricsRouter(),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
 	// Channel to listen for interrupt or terminate signals
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
+	//Web Analyzer Server
 	go func() {
 		log.Logger.Info("Server started on :8080")
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -47,6 +54,14 @@ func main() {
 			debug.StartPprof(":6060")
 		}()
 	}
+
+	//Prometheus server
+	go func() {
+		log.Logger.Info("Metrics server started on :8081")
+		if err := metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Logger.Fatal("Metrics server failed", zap.Error(err))
+		}
+	}()
 
 	// Wait for interrupt
 	<-stop

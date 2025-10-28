@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"webanalyzer/internal/service"
 	"webanalyzer/internal/util"
@@ -38,4 +39,8 @@ func AnalyzePageHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	response.Success(w, result, "")
+}
+
+func MetricsHandler() http.Handler {
+	return promhttp.Handler()
 }
