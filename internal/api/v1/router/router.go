@@ -30,7 +30,8 @@ func New() http.Handler {
 			middleware.Logging(
 				middleware.Compression(
 					middleware.CORS(
-						middleware.RateLimit(mux),
+						middleware.RateLimit(
+							middleware.MetricsMiddleware(mux)),
 					),
 				),
 			),
