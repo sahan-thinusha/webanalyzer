@@ -28,12 +28,12 @@ func main() {
 	r := router.New()
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + config.AppConfig.PublicWebServerPort,
 		Handler: r,
 	}
 
 	metricsServer := &http.Server{
-		Addr:              ":8081",
+		Addr:              ":" + config.AppConfig.MetricsWebServerPort,
 		Handler:           router.NewMetricsRouter(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
@@ -44,7 +44,7 @@ func main() {
 
 	//Web Analyzer Server
 	go func() {
-		log.Logger.Info("Server started on :8080")
+		log.Logger.Info("Server started on :" + config.AppConfig.PublicWebServerPort)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Logger.Fatal("Server failed", zap.Error(err))
 		}
@@ -53,7 +53,7 @@ func main() {
 	// Pprof only enabled in dev env
 	if config.AppConfig.IsDev == "true" {
 		go func() {
-			debug.StartPprof(":6060")
+			debug.StartPprof(":" + config.AppConfig.PprofWebServerPort)
 		}()
 	}
 

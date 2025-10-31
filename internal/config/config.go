@@ -7,9 +7,12 @@ import (
 )
 
 type Config struct {
-	BasicAuthUser string `mapstructure:"BASIC_AUTH_USER"`
-	BasicAuthPass string `mapstructure:"BASIC_AUTH_PASS"`
-	IsDev         string `mapstructure:"IS_DEV"`
+	BasicAuthUser        string `mapstructure:"BASIC_AUTH_USER"`
+	BasicAuthPass        string `mapstructure:"BASIC_AUTH_PASS"`
+	IsDev                string `mapstructure:"IS_DEV"`
+	PublicWebServerPort  string `mapstructure:"PUBLIC_WEB_SERVER_PORT"`
+	MetricsWebServerPort string `mapstructure:"METRICS_WEB_SERVER_PORT"`
+	PprofWebServerPort   string `mapstructure:"PPROF_WEB_SERVER_PORT"`
 }
 
 var AppConfig *Config
@@ -28,6 +31,9 @@ func LoadEnv() {
 
 	v.SetDefault(BASIC_AUTH_USER, "")
 	v.SetDefault(BASIC_AUTH_PASS, "")
+	v.SetDefault(PUBLIC_WEB_SERVER_PORT, "8080")
+	v.SetDefault(PPROF_WEB_SERVER_PORT, "6061")
+	v.SetDefault(METRICS_WEB_SERVER_PORT, "8081")
 	v.SetDefault(IS_DEV, "false")
 
 	var cfg Config
