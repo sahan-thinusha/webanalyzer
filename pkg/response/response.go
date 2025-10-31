@@ -8,9 +8,10 @@ import (
 )
 
 type Response struct {
-	Status  string      `json:"status"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
+	Status     string      `json:"status"`
+	StatusCode int         `json:"status_code,omitempty"`
+	Message    string      `json:"message,omitempty"`
+	Data       interface{} `json:"data,omitempty"`
 }
 
 func JSON(w http.ResponseWriter, statusCode int, data interface{}, message string) {
@@ -18,9 +19,10 @@ func JSON(w http.ResponseWriter, statusCode int, data interface{}, message strin
 	w.WriteHeader(statusCode)
 
 	res := Response{
-		Status:  http.StatusText(statusCode),
-		Message: message,
-		Data:    data,
+		Status:     http.StatusText(statusCode),
+		StatusCode: statusCode,
+		Message:    message,
+		Data:       data,
 	}
 
 	err := json.NewEncoder(w).Encode(res)

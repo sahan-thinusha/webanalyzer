@@ -18,17 +18,17 @@ import (
 
 // AnalyzePage analyzes the HTML content of a webpage at the given target URL.
 // detect the HTML version, extract the page title, count of different headers, count internal, external, and inaccessible links, and has login form in the page
-func AnalyzePage(targetURL string) *model.WebpageAnalysis {
+func AnalyzePage(targetURL string) (*model.WebpageAnalysis, error) {
 	page := &model.WebpageAnalysis{}
 
 	baseURL, err := url.Parse(targetURL)
 	if err != nil {
-		return page
+		return page, err
 	}
 
 	root, rawHTML, err := fetchHTML(targetURL)
 	if err != nil {
-		return page
+		return page, err
 	}
 
 	var wg sync.WaitGroup
@@ -67,7 +67,7 @@ func AnalyzePage(targetURL string) *model.WebpageAnalysis {
 	page.ExternalLinkCount = external
 	page.InaccessibleLinkCount = inaccessible
 
-	return page
+	return page, nil
 }
 
 // retrieves and parses the HTML content from the given URL
@@ -129,18 +129,36 @@ func fetchHTML(targetURL string) (*html.Node, string, error) {
 
 // analyze HTML version
 func detectHTMLVersion(rawHTML string) string {
-	docStart := rawHTML
-	if len(rawHTML) > 1000 {
-		docStart = rawHTML[:1000]
+	if rawHTML == "" {
+		return "No response (possibly blocked or restricted site)"
 	}
 
+	docStart := rawHTML
+	if len(rawHTML) > 2000 {
+		docStart = rawHTML[:2000]
+	}
+
+	docStart = strings.ToLower(docStart)
+
 	switch {
-	case analyzer.Html5Doctype.MatchString(docStart):
+	case strings.Contains(docStart, "<!doctype html>"):
 		return "HTML5"
-	case analyzer.XhtmlDoctype.MatchString(docStart):
-		return "XHTML 1.0"
-	case analyzer.Html4Doctype.MatchString(docStart):
-		return "HTML 4.01"
+
+	case strings.Contains(docStart, "xhtml 1.0 strict"):
+		return "XHTML 1.0 Strict"
+	case strings.Contains(docStart, "xhtml 1.0 transitional"):
+		return "XHTML 1.0 Transitional"
+	case strings.Contains(docStart, "xhtml 1.0 frameset"):
+		return "XHTML 1.0 Frameset"
+	case strings.Contains(docStart, "xhtml 1.1"):
+		return "XHTML 1.1"
+	case strings.Contains(docStart, "html 4.01 strict"):
+		return "HTML 4.01 Strict"
+	case strings.Contains(docStart, "html 4.01 transitional"):
+		return "HTML 4.01 Transitional"
+	case strings.Contains(docStart, "html 4.01 frameset"):
+		return "HTML 4.01 Frameset"
+
 	default:
 		return "Unknown (possibly HTML5 without explicit DOCTYPE)"
 	}
