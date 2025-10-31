@@ -5,8 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 	"net/http"
 	"strings"
+	"time"
+	"webanalyzer/internal/cache"
+	"webanalyzer/internal/log"
 	"webanalyzer/internal/service"
 	"webanalyzer/internal/util"
 	"webanalyzer/pkg/response"
@@ -35,6 +39,13 @@ func AnalyzePageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if cached, found := cache.Store.Get(url); found {
+		log.Logger.Info("Cache hit:", zap.String("url", url))
+		w.Header().Set("Content-Type", "application/json")
+		response.Success(w, cached, "")
+		return
+	}
+
 	result, err := service.AnalyzePage(url)
 	if err != nil {
 		var statusCode int
@@ -59,7 +70,7 @@ func AnalyzePageHandler(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusInternalServerError, "failed to analyze page")
 		return
 	}
-
+	cache.Store.Set(url, result, 1*time.Hour)
 	w.Header().Set("Content-Type", "application/json")
 	response.Success(w, result, "")
 }

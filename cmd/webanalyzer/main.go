@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 	"webanalyzer/internal/api/v1/router"
+	"webanalyzer/internal/cache"
 	"webanalyzer/internal/config"
 	"webanalyzer/internal/debug"
 	"webanalyzer/internal/log"
@@ -22,6 +23,7 @@ func init() {
 
 func main() {
 	defer log.Sync()
+	cache.Init()
 
 	r := router.New()
 

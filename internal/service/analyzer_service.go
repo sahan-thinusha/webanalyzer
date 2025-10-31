@@ -295,10 +295,7 @@ func checkLinkAccessibility(ctx context.Context, link string, baseURL *url.URL) 
 		}
 	}
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
+		Body.Close()
 	}(resp.Body)
 
 	return resp.StatusCode < 400
