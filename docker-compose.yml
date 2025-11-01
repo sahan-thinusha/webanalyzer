@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  webanalyzer:
+    build: .
+    container_name: webanalyzer
+    ports:
+      - "8080:8080"     # Public web server
+      - "8081:8081"     # Prometheus metrics endpoint
+      - "6061:6061"     # pprof
+    environment:
+      BASIC_AUTH_USER: admin
+      BASIC_AUTH_PASS: pw12345
+      IS_DEV: "true"
+      PUBLIC_WEB_SERVER_PORT: 8080
+      METRICS_WEB_SERVER_PORT: 8081
+      PPROF_WEB_SERVER_PORT: 6061
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    user: root
+    command:
+      - bash
+      - -c
+      - |
+        apt-get update && apt-get install -y ca-certificates && update-ca-certificates
+        exec /run.sh
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge

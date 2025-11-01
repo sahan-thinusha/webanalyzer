@@ -43,8 +43,8 @@ func LoadEnv() {
 
 	AppConfig = &cfg
 
-	if AppConfig.BasicAuthUser == "" || AppConfig.BasicAuthPass == "" {
+	/*if AppConfig.BasicAuthUser == "" || AppConfig.BasicAuthPass == "" {
 		log.Logger.Fatal("BASIC_AUTH_USER and BASIC_AUTH_PASS must be set")
-	}
+	}*/
 
 }
