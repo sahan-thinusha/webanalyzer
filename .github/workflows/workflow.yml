@@ -1,0 +1,53 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:24-dind
+        privileged: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+
+      - name: Run Go unit tests
+        working-directory: ./backend
+        run: |
+          go mod tidy
+          go test ./... -v
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+
+      - name: Build Docker Compose stack
+        run: docker compose build
+
+      - name: Run Docker Compose stack
+        run: docker compose up -d
+
+      - name: List running containers
+        run: docker ps -a
+
+      - name: Health check backend
+        run: |
+          sleep 10
+          curl -f http://localhost:8080/webanalyzer/api/v1/health || (docker compose logs webanalyzer && exit 1)
+
+      - name: Stop and clean up
+        if: always()
+        run: docker compose down -v

@@ -12,58 +12,49 @@ A comprehensive web application for in-depth website analysis and link validatio
 - Inaccessible links identification
 - Login Form Detection
 
+## System Architecture
+
+#### 🖼High-Level Architecture
+![System Architecture](res/system_architecture.png)
+
+####  High-Level Sequence Diagram
+![High-Level Sequence Diagram](res/high_level_sequence_diagram.png)
+
+#### Request Flow
+![Request Flow](res/request_flow.png)
+
+
 ## Quick Start
 
-### Start development server
+### Running the Stack
+
 ```bash
-npm run dev
+  docker compose up --build
+
 ```
 
-### Start with browser auto-open
-```bash
-npm run dev -- --open
-```
+### Open in your browser
+Service	URL	Description
 
-### Production build
-```bash
-npm run build
-```
+Frontend (Svelte)	http://localhost:3000
 
-### Preview production
-```bash
-npm run preview
-```
+Backend (Go)	http://localhost:8080
+
+Prometheus	http://localhost:9090
+
+Grafana	http://localhost:3001
+
 
 ## Tech Stack
 
-**Client:** Svelte 
+**Client:** Svelte
 
 **Server:** Go
 
 
 ## Screenshots
 
-![App Screenshot](src/lib/assets/app_ss.png)
+![App Screenshot](res/app_ss.png)
 
 
-## Usage/Examples
-
-```javascript
-import Component from 'my-project'
-
-function App() {
-  return <Component />
-}
-```
-
-
-## Open in your browser
-Service	URL	Description
-Frontend (Svelte)	http://localhost:3000
-
-Backend (Go)	http://localhost:8080
-
-
-Prometheus	http://localhost:9090
-	
-Grafana	http://localhost:3001
+##
