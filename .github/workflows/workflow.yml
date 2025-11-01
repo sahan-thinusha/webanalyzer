@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -9,11 +9,7 @@ on:
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
-
-    services:
-      docker:
-        image: docker:24-dind
-        privileged: true
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -22,7 +18,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25.x"
+          go-version: "1.23.x"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Run Go unit tests
         working-directory: ./backend
@@ -33,7 +37,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-
       - name: Build Docker Compose stack
         run: docker compose build
 
@@ -43,10 +46,18 @@ jobs:
       - name: List running containers
         run: docker ps -a
 
-      - name: Health check backend
+      - name: Wait for services to be ready
         run: |
-          sleep 10
-          curl -f http://localhost:8080/webanalyzer/api/v1/health || (docker compose logs webanalyzer && exit 1)
+          echo "Waiting for backend to be healthy..."
+          timeout 60 bash -c 'until curl -f http://localhost:8080/webanalyzer/api/v1/health; do echo "Waiting..."; sleep 2; done' || (echo "Health check failed" && docker compose logs && exit 1)
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "=== Docker Compose Logs ==="
+          docker compose logs
+          echo "=== Container Status ==="
+          docker compose ps
 
       - name: Stop and clean up
         if: always()
