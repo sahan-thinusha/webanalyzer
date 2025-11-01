@@ -19,7 +19,6 @@ USER appuser
 WORKDIR /app
 
 COPY --from=builder /app/webanalyzer .
-COPY --from=builder /app/.env .env
 
 EXPOSE 8080 8081 6061
 

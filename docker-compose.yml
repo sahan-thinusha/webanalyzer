@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   webanalyzer:
-    build: .
+    build: ./backend
     container_name: webanalyzer
     ports:
       - "8080:8080"     # Public web server
@@ -15,6 +15,20 @@ services:
       PUBLIC_WEB_SERVER_PORT: 8080
       METRICS_WEB_SERVER_PORT: 8081
       PPROF_WEB_SERVER_PORT: 6061
+    volumes:
+      - ./backend/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - monitoring
+
+  frontend:
+    build: ./frontend
+    container_name: webanalyzer-frontend
+    ports:
+      - "3000:80" 
+    environment:
+      - API_BASE_URL=http://webanalyzer:8080 
+    depends_on:
+      - webanalyzer
     networks:
       - monitoring
 
@@ -23,7 +37,7 @@ services:
     container_name: prometheus
     restart: always
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./backend/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     ports:
@@ -36,12 +50,12 @@ services:
     container_name: grafana
     restart: always
     user: root
-    command:
-      - bash
+    entrypoint:
+      - /bin/bash
       - -c
       - |
         apt-get update && apt-get install -y ca-certificates && update-ca-certificates
-        exec /run.sh
+        /run.sh
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
