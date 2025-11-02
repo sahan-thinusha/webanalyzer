@@ -27,24 +27,54 @@ func TestDetectHTMLVersion(t *testing.T) {
 			expected: "HTML5",
 		},
 		{
-			name:     "HTML5 doctype case insensitive",
+			name:     "HTML5 doctype (case insensitive)",
 			rawHTML:  "<!doctype HTML><html><head><title>Test</title></head></html>",
 			expected: "HTML5",
 		},
 		{
-			name:     "XHTML 1.0 doctype",
+			name:     "XHTML 1.0 Strict doctype",
 			rawHTML:  `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html></html>`,
-			expected: "XHTML 1.0",
+			expected: "XHTML 1.0 Strict",
 		},
 		{
-			name:     "HTML 4.01 doctype",
-			rawHTML:  `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"><html></html>`,
-			expected: "HTML 4.01",
+			name:     "XHTML 1.0 Transitional doctype",
+			rawHTML:  `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html></html>`,
+			expected: "XHTML 1.0 Transitional",
+		},
+		{
+			name:     "XHTML 1.0 Frameset doctype",
+			rawHTML:  `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd"><html></html>`,
+			expected: "XHTML 1.0 Frameset",
+		},
+		{
+			name:     "XHTML 1.1 doctype",
+			rawHTML:  `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><html></html>`,
+			expected: "XHTML 1.1",
+		},
+		{
+			name:     "HTML 4.01 Strict doctype",
+			rawHTML:  `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Strict//EN" "http://www.w3.org/TR/html4/strict.dtd"><html></html>`,
+			expected: "HTML 4.01 Strict",
+		},
+		{
+			name:     "HTML 4.01 Transitional doctype",
+			rawHTML:  `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html></html>`,
+			expected: "HTML 4.01 Transitional",
+		},
+		{
+			name:     "HTML 4.01 Frameset doctype",
+			rawHTML:  `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Frameset//EN" "http://www.w3.org/TR/html4/frameset.dtd"><html></html>`,
+			expected: "HTML 4.01 Frameset",
 		},
 		{
 			name:     "No doctype",
 			rawHTML:  "<html><head><title>Test</title></head></html>",
 			expected: "Unknown (possibly HTML5 without explicit DOCTYPE)",
+		},
+		{
+			name:     "Empty response",
+			rawHTML:  "",
+			expected: "No response (possibly blocked or restricted site)",
 		},
 	}
 
@@ -52,7 +82,7 @@ func TestDetectHTMLVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := detectHTMLVersion(tt.rawHTML)
 			if result != tt.expected {
-				t.Errorf("detectHTMLVersion() = %v, want %v", result, tt.expected)
+				t.Errorf("detectHTMLVersion() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
