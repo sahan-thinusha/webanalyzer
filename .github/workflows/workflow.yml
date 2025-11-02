@@ -7,12 +7,13 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-test-deploy:
+  backend-pipeline:
+    name: Build, Test, and Deploy the Backend
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
+      - name: Check out the repository
         uses: actions/checkout@v4
 
       - name: Set up Go
@@ -30,37 +31,36 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Run Go unit tests
+      - name: Run backend tests
         working-directory: ./backend
         run: |
+          echo "Running unit tests for the backend service..."
           go mod tidy
-          go test ./... -v
+          go test ./internal/service/... -v -cover
 
-      - name: Set up Docker Buildx
+      - name: Build Docker images
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker Compose stack
+      - name: Build stack with Docker Compose
         run: docker compose build
 
-      - name: Run Docker Compose stack
+      - name: Start the application stack
         run: docker compose up -d
 
-      - name: List running containers
-        run: docker ps -a
-
-      - name: Wait for services to be ready
+      - name: Wait for backend health
         run: |
-          echo "Waiting for backend to be healthy..."
-          timeout 60 bash -c 'until curl -f http://localhost:8080/webanalyzer/api/v1/health; do echo "Waiting..."; sleep 2; done' || (echo "Health check failed" && docker compose logs && exit 1)
+          echo "Waiting for the backend to be ready..."
+          timeout 60 bash -c 'until curl -fs http://localhost:8080/webanalyzer/api/v1/health; do echo "Still starting up..."; sleep 2; done' \
+            || (echo "Backend failed health check." && docker compose logs && exit 1)
 
       - name: Show logs on failure
         if: failure()
         run: |
-          echo "=== Docker Compose Logs ==="
+          echo "===== Backend Logs ====="
           docker compose logs
-          echo "=== Container Status ==="
+          echo "===== Container Status ====="
           docker compose ps
 
-      - name: Stop and clean up
+      - name: Clean up
         if: always()
         run: docker compose down -v
