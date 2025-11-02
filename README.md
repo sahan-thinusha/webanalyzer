@@ -56,5 +56,17 @@ Grafana	http://localhost:3001
 
 ![App Screenshot](res/app_ss.png)
 
+## Assumptions
 
-##
+- Static HTML Processing
+  The system assumes the HTML content returned from the initial HTTP response is complete — it does not execute or process JavaScript (no browser-based rendering).
+- Accessible Public Pages
+  The target URLs are publicly accessible (no login/session/cookies or CAPTCHA-based restrictions).
+
+## Enhancements
+
+- JavaScript Rendering Support
+Integrate a headless browser to analyze dynamically generated DOM content.
+
+- Robots.txt and Sitemap Parsing
+Respect crawling rules and discover site structure automatically.
