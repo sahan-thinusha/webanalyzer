@@ -42,7 +42,7 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	//Web Analyzer Server
+	//  Web Analyzer Server
 	go func() {
 		log.Logger.Info("Server started on :" + config.AppConfig.PublicWebServerPort)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -57,7 +57,7 @@ func main() {
 		}()
 	}
 
-	//Prometheus server
+	// Prometheus server
 	go func() {
 		log.Logger.Info("Metrics server started on :8081")
 		if err := metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
