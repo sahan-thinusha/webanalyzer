@@ -11,17 +11,19 @@ A comprehensive web application for in-depth website analysis and link validatio
 - External links count
 - Inaccessible links identification
 - Login Form Detection
+- Memory-Level Caching
+- Graceful Shutdown
 
 ## System Architecture
 
-#### 🖼High-Level Architecture
-![System Architecture](res/system_architecture.png)
+#### High-Level Architecture
+<img src="res/system architecture_diagram.png" alt="System Architecture" width="60%"/>
 
-####  High-Level Sequence Diagram
-![High-Level Sequence Diagram](res/high_level_sequence_diagram.png)
+#### High-Level Sequence Diagram
+<img src="res/high_level_sequence_diagram.png" alt="High-Level Sequence Diagram" width="60%"/>
 
 #### Request Flow
-![Request Flow](res/request_flow.png)
+<img src="res/request_flow.png" alt="Request Flow" width="60%"/>
 
 
 ## Quick Start
