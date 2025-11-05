@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -530,7 +531,13 @@ func TestHasLoginForm(t *testing.T) {
 
 func TestFetchHTML(t *testing.T) {
 	log.Logger, _ = zap.NewDevelopment()
-	defer log.Logger.Sync()
+	defer func(Logger *zap.Logger) {
+		err := Logger.Sync()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to sync logger: %v\n", err)
+		}
+
+	}(log.Logger)
 	tests := []struct {
 		name           string
 		serverResponse func(w http.ResponseWriter, r *http.Request)
@@ -540,7 +547,10 @@ func TestFetchHTML(t *testing.T) {
 			name: "Successful fetch",
 			serverResponse: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				fmt.Fprint(w, "<html><head><title>Test</title></head></html>")
+				_, err := fmt.Fprint(w, "<html><head><title>Test</title></head></html>")
+				if err != nil {
+					return
+				}
 			},
 			expectError: false,
 		},

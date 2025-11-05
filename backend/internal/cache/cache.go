@@ -1,8 +1,9 @@
-package cache
+package cache //nolint:gofmt
 
 import (
-	gocache "github.com/patrickmn/go-cache"
 	"time"
+
+	gocache "github.com/patrickmn/go-cache"
 )
 
 var Store *gocache.Cache
