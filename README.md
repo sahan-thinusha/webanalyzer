@@ -74,7 +74,5 @@ Integrate a headless browser to analyze dynamically generated DOM content.
 Respect crawling rules and discover site structure automatically.
 
 ## Documentation
-
-- [View PDF Documentation](https://github.com/sahan-thinusha/webanalyzer/blob/main/res/Web%20Analyzer.pdf)
 - [Download PDF](res/Web%20Analyzer.pdf)
 
