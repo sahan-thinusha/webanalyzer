@@ -72,3 +72,9 @@ Integrate a headless browser to analyze dynamically generated DOM content.
 
 - Robots.txt and Sitemap Parsing
 Respect crawling rules and discover site structure automatically.
+
+## Documentation
+
+- [View PDF Documentation](https://sahan-thinusha.github.io/webanalyzer/res/Web%20Analyzer.pdf)
+- [Download PDF](res/Web%20Analyzer.pdf)
+
